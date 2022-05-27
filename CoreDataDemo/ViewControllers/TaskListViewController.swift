@@ -6,14 +6,14 @@
 //
 
 import UIKit
-import CoreData
+
 
 protocol TaskViewControllerDelegate {
     func reloadData()
 }
 
 class TaskListViewController: UITableViewController {
-    private let context = (UIApplication.shared.delegate as! AppDelegate).persistentContainer.viewContext
+
     private let cellID = "task"
     private var taskList: [Task] = []
 
@@ -57,12 +57,13 @@ class TaskListViewController: UITableViewController {
     }
     
     private func fetchData() {
-        let fetchRequest = Task.fetchRequest()
-        
-        do {
-            taskList = try context.fetch(fetchRequest)
-        } catch let error {
-            print("Failed to fetch data", error)
+        StorageManager.shared.fetchData { result in
+            switch result {
+            case .success(let taskList):
+                self.taskList = taskList
+            case .failure(let error):
+                print(error)
+            }
         }
     }
     
@@ -81,22 +82,33 @@ class TaskListViewController: UITableViewController {
         present(alert, animated: true)
     }
     
-    private func save(_ taskName: String) {
-        guard let entityDescription = NSEntityDescription.entity(forEntityName: "Task", in: context) else { return }
-        guard let task = NSManagedObject(entity: entityDescription, insertInto: context) as? Task else { return }
-        task.title = taskName
-        taskList.append(task)
-        
-        let cellIndex = IndexPath(row: taskList.count - 1, section: 0)
-        tableView.insertRows(at: [cellIndex], with: .automatic)
-        
-        if context.hasChanges {
-            do {
-                try context.save()
-            } catch let error {
-                print(error)
-            }
+    
+    private func showAlertEdit(task: Task, and message: String, completion: @escaping (String) -> Void) {
+        let alert = UIAlertController(title: title, message: message, preferredStyle: .alert)
+        let saveAction = UIAlertAction(title: "Save", style: .default) { _ in
+            guard let name = alert.textFields?.first?.text, !name.isEmpty else { return }
+            self.edit(task: task, name: name)
+            completion(name)
         }
+        let cancelAction = UIAlertAction(title: "Cancel", style: .destructive)
+        alert.addAction(saveAction)
+        alert.addAction(cancelAction)
+        alert.addTextField { textField in
+            textField.text = task.title
+        }
+        present(alert, animated: true)
+    }
+    
+    private func save(_ taskName: String) {
+        StorageManager.shared.saveTask(taskName: taskName) { task in
+            taskList.append(task)
+            let cellIndex = IndexPath(row: taskList.count - 1, section: 0)
+            tableView.insertRows(at: [cellIndex], with: .automatic)
+        }
+    }
+    
+    private func edit(task: Task, name: String) {
+        StorageManager.shared.editTask(task: task, name: name)
     }
 }
 
@@ -114,6 +126,27 @@ extension TaskListViewController {
         cell.contentConfiguration = content
         return cell
     }
+    
+    override func tableView(_ tableView: UITableView, commit editingStyle: UITableViewCell.EditingStyle, forRowAt indexPath: IndexPath) {
+        let task = taskList[indexPath.row]
+        
+        if editingStyle == .delete {
+            StorageManager.shared.deleteTask(task: task)
+            taskList.remove(at: indexPath.row)
+            tableView.deleteRows(at: [indexPath], with: .automatic)
+        }
+    }
+    
+    override func tableView(_ tableView: UITableView, didSelectRowAt indexPath: IndexPath) {
+        tableView.deselectRow(at: indexPath, animated: true)
+        let task = taskList[indexPath.row]
+        showAlertEdit(task: task, and: "Would you like to update?") { name in
+            self.taskList[indexPath.row].title=name
+            tableView.reloadRows(at: [indexPath], with: .automatic)
+        }
+      
+        
+    }
 }
 
 // MARK: - TaskViewControllerDelegate
@@ -123,3 +156,4 @@ extension TaskListViewController: TaskViewControllerDelegate {
         tableView.reloadData()
     }
 }
+

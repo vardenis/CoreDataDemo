@@ -21,11 +21,12 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
     }
     
     func applicationWillTerminate(_ application: UIApplication) {
-        saveContext()
+        StorageManager.shared.saveContext()
+        //saveContext()
     }
 
     // MARK: - Core Data stack
-    lazy var persistentContainer: NSPersistentContainer = {
+   /* lazy var persistentContainer: NSPersistentContainer = {
         let container = NSPersistentContainer(name: "CoreDataDemo")
         container.loadPersistentStores(completionHandler: { (storeDescription, error) in
             if let error = error as NSError? {
@@ -33,10 +34,10 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
             }
         })
         return container
-    }()
+    }()*/
 
     // MARK: - Core Data Saving support
-    func saveContext() {
+    /*func saveContext() {
         let context = persistentContainer.viewContext
         if context.hasChanges {
             do {
@@ -46,6 +47,6 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
                 fatalError("Unresolved error \(nserror), \(nserror.userInfo)")
             }
         }
-    }
+    }*/
 }
 
